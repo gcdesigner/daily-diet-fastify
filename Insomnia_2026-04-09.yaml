@@ -1,0 +1,264 @@
+type: collection.insomnia.rest/5.0
+schema_version: "5.1"
+name: My first collection
+meta:
+  id: wrk_8ca575388d974eada0be8bd08bf0ea89
+  created: 1772543563993
+  modified: 1772543563993
+  description: ""
+collection:
+  - url: http://127.0.0.1:3333/meals
+    name: "Get All User Meals "
+    meta:
+      id: req_eff5d60e825a45e59fc4c041ca013bdb
+      created: 1772543563998
+      modified: 1775738015270
+      isPrivate: false
+      description: ""
+      sortKey: -1772932674549.75
+    method: GET
+    headers:
+      - name: User-Agent
+        value: insomnia/12.3.1
+        description: ""
+        disabled: false
+    settings:
+      renderRequestBody: true
+      encodeUrl: true
+      followRedirects: global
+      cookies:
+        send: true
+        store: true
+      rebuildPath: true
+  - url: http://127.0.0.1:3333/users/me
+    name: Get User
+    meta:
+      id: req_90128ce168674af59eab626e89891581
+      created: 1775656448612
+      modified: 1775738034761
+      isPrivate: false
+      description: ""
+      sortKey: -1775656448862
+    method: GET
+    headers:
+      - name: User-Agent
+        value: insomnia/12.5.0
+        description: ""
+        disabled: false
+    settings:
+      renderRequestBody: true
+      encodeUrl: true
+      followRedirects: global
+      cookies:
+        send: true
+        store: true
+      rebuildPath: true
+  - url: http://127.0.0.1:3333/users
+    name: Create User
+    meta:
+      id: req_0d9545d7bbad4e81ba6c91083ef2bc00
+      created: 1775656510191
+      modified: 1775737941169
+      isPrivate: false
+      description: ""
+      sortKey: -1775656448912
+    method: POST
+    body:
+      mimeType: application/json
+      text: |-
+        {
+        	"name": "Teste",
+        	"email": "teste@teste.com",
+        	"password": "123456"
+        }
+    headers:
+      - name: Content-Type
+        value: application/json
+      - name: User-Agent
+        value: insomnia/12.5.0
+        description: ""
+        disabled: false
+    settings:
+      renderRequestBody: true
+      encodeUrl: true
+      followRedirects: global
+      cookies:
+        send: true
+        store: true
+      rebuildPath: true
+  - url: http://127.0.0.1:3333/meals
+    name: Create Meal
+    meta:
+      id: req_9ad43fb8f5714597825bc3c5cf1fc656
+      created: 1775656608952
+      modified: 1775742419928
+      isPrivate: false
+      description: ""
+      sortKey: -1774100006305
+    method: POST
+    body:
+      mimeType: application/json
+      text: |-
+        {
+        	"name": "Comida 3",
+        	"description": "",
+        	"date": "2026-04-06",
+        	"time": "22:30:00",
+        	"isDiet": 0
+        }
+    headers:
+      - name: Content-Type
+        value: application/json
+      - name: User-Agent
+        value: insomnia/12.3.1
+        description: ""
+        disabled: false
+    settings:
+      renderRequestBody: true
+      encodeUrl: true
+      followRedirects: global
+      cookies:
+        send: true
+        store: true
+      rebuildPath: true
+  - url: http://127.0.0.1:3333/auth/sign-in
+    name: Signin
+    meta:
+      id: req_19f9b6fef99e464087c6145a7cda736c
+      created: 1775657384877
+      modified: 1775738951703
+      isPrivate: false
+      description: ""
+      sortKey: -1775656448887
+    method: POST
+    body:
+      mimeType: application/json
+      text: |-
+        {
+        	"email": "teste@teste.com",
+        	"password": "123456"
+        }
+    headers:
+      - name: Content-Type
+        value: application/json
+      - name: User-Agent
+        value: insomnia/12.5.0
+        description: ""
+        disabled: false
+    settings:
+      renderRequestBody: true
+      encodeUrl: true
+      followRedirects: global
+      cookies:
+        send: true
+        store: true
+      rebuildPath: true
+  - url: http://127.0.0.1:3333/auth/sign-out
+    name: Signout
+    meta:
+      id: req_3766f60c26694a5bac9ecb00ea327f40
+      created: 1775657434563
+      modified: 1775737997785
+      isPrivate: false
+      description: ""
+      sortKey: -1775656448874.5
+    method: POST
+    body:
+      mimeType: application/json
+      text: "{}"
+    headers:
+      - name: Content-Type
+        value: application/json
+      - name: User-Agent
+        value: insomnia/12.5.0
+        description: ""
+        disabled: false
+    settings:
+      renderRequestBody: true
+      encodeUrl: true
+      followRedirects: global
+      cookies:
+        send: true
+        store: true
+      rebuildPath: true
+  - url: http://127.0.0.1:3333/meals/8d9032dd-a99c-46ef-b55f-99aeb0580cb4
+    name: Edit Meal
+    meta:
+      id: req_5c8b287b389a4fffae67e1413514e0cf
+      created: 1775660647022
+      modified: 1775738969870
+      isPrivate: false
+      description: ""
+      sortKey: -1773321785151.5
+    method: PUT
+    body:
+      mimeType: application/json
+      text: |-
+        {
+        	"userId": "36371434-3e62-4207-b8db-a58d2378229b",
+        	"name": "Refeicao editada",
+        	"description": "",
+        	"date": "2026-04-08",
+        	"time": "12:00:00",
+        	"isDiet": 1
+        }
+    headers:
+      - name: Content-Type
+        value: application/json
+      - name: User-Agent
+        value: insomnia/12.3.1
+        description: ""
+        disabled: false
+    settings:
+      renderRequestBody: true
+      encodeUrl: true
+      followRedirects: global
+      cookies:
+        send: true
+        store: true
+      rebuildPath: true
+  - url: http://127.0.0.1:3333/user-metrics/
+    name: Get User Metrics
+    meta:
+      id: req_d7ae8d56fac941ccbd5209a6617e6906
+      created: 1775664549613
+      modified: 1775668899848
+      isPrivate: false
+      description: ""
+      sortKey: -1772543563948
+    method: GET
+    headers:
+      - name: User-Agent
+        value: insomnia/12.3.1
+        description: ""
+        disabled: false
+    settings:
+      renderRequestBody: true
+      encodeUrl: true
+      followRedirects: global
+      cookies:
+        send: true
+        store: true
+      rebuildPath: true
+cookieJar:
+  name: Default Jar
+  meta:
+    id: jar_7dcc7040c0a9f0100ba82cd2f7e3b6e703161d8c
+    created: 1772543563995
+    modified: 1775738952900
+  cookies:
+    - id: ae1cef7f-c5b1-4d06-b735-8ae354c2b56f
+      key: token
+      value: 903e389f-cd9a-44d3-b054-d09a26eae174
+      domain: 127.0.0.1
+      path: /
+      secure: false
+      httpOnly: true
+      hostOnly: true
+environments:
+  name: Base Environment
+  meta:
+    id: env_7dcc7040c0a9f0100ba82cd2f7e3b6e703161d8c
+    created: 1772543563994
+    modified: 1772543563994
+    isPrivate: false
