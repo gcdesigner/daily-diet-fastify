@@ -38,8 +38,8 @@ describe('Auth Routes', () => {
       .post('/auth/sign-in')
       .send({ email: 'naoexiste@example.com' })
 
-    expect(response.status).toBe(404)
-    expect(response.body).toEqual({ error: 'User not found' })
+    expect(response.status).toBe(401)
+    expect(response.body).toEqual({ error: 'Invalid credentials' })
   })
 
   it('should be able to sign out', async () => {

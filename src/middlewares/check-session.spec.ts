@@ -5,6 +5,7 @@ import {
   createAuthenticatedClient,
   createAuthenticatedUser,
 } from '@/test/helpers'
+import { hashSessionToken } from '@/utils/session-token'
 import { randomUUID } from 'crypto'
 import { eq } from 'drizzle-orm'
 import request from 'supertest'
@@ -52,9 +53,10 @@ describe('Check Session Middleware', () => {
     const { user } = await createAuthenticatedUser()
 
     const expiredToken = randomUUID()
+    const expiredTokenHash = hashSessionToken(expiredToken)
     await db.insert(sessionsTable).values({
-      userId: user.id,
-      token: expiredToken,
+      userId: user.id!,
+      token: expiredTokenHash,
       expiresAt: new Date(Date.now() - 1000).toISOString(),
     })
 
@@ -68,7 +70,7 @@ describe('Check Session Middleware', () => {
     const sessions = await db
       .select()
       .from(sessionsTable)
-      .where(eq(sessionsTable.token, expiredToken))
+      .where(eq(sessionsTable.token, expiredTokenHash))
 
     expect(sessions).toHaveLength(0)
   })

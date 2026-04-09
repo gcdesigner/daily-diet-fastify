@@ -30,8 +30,14 @@ app.register(cookie, {
   secret: env.COOKIE_SECRET,
 })
 
+const corsOrigin =
+  env.CORS_ORIGIN?.split(',')
+    .map((o) => o.trim())
+    .filter(Boolean) ?? env.NODE_ENV !== 'production'
+
 app.register(cors, {
-  origin: '*',
+  origin: corsOrigin,
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 })
@@ -62,24 +68,26 @@ app.setErrorHandler((error, _request, reply) => {
   return reply.status(500).send({ error: 'Internal server error' })
 })
 
-await app.register(swagger, {
-  openapi: {
-    openapi: '3.0.0',
-    info: {
-      title: 'Daily Diet API',
-      description: 'API for the Daily Diet application',
-      version: '1.0.0',
+if (env.NODE_ENV !== 'production') {
+  await app.register(swagger, {
+    openapi: {
+      openapi: '3.0.0',
+      info: {
+        title: 'Daily Diet API',
+        description: 'API for the Daily Diet application',
+        version: '1.0.0',
+      },
+      servers: [
+        { url: 'http://localhost:3333', description: 'Development server' },
+      ],
     },
-    servers: [
-      { url: 'http://localhost:3333', description: 'Development server' },
-    ],
-  },
-  transform: jsonSchemaTransform,
-})
+    transform: jsonSchemaTransform,
+  })
 
-app.register(fastifySwaggerUi, {
-  routePrefix: '/docs',
-})
+  app.register(fastifySwaggerUi, {
+    routePrefix: '/docs',
+  })
+}
 
 app.register(authRoutes, { prefix: '/auth' })
 app.register(userRoutes, { prefix: '/users' })

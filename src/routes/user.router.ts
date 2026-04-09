@@ -1,6 +1,6 @@
 import { db } from '@/database'
 import { usersTable } from '@/drizzle-schema'
-import { NotFoundError } from '@/errors/app-error'
+import { ForbiddenError, NotFoundError } from '@/errors/app-error'
 import { checkTokenExists } from '@/middlewares/check-session'
 import { takeUniqueOrThrow } from '@/utils/drizzle-utils'
 import { eq } from 'drizzle-orm'
@@ -15,22 +15,27 @@ const userResponseSchema = z.object({
 
 const userRoutes: FastifyPluginAsyncZod = async (app) => {
   app.get(
-    '/',
+    '/me',
     {
       preHandler: [checkTokenExists],
       schema: {
         tags: ['users'],
         response: {
           200: z.object({
-            users: z.array(userResponseSchema),
+            user: userResponseSchema,
           }),
         },
       },
     },
 
-    async (_request, reply) => {
-      const users = await db.select().from(usersTable)
-      return reply.status(200).send({ users })
+    async (request, reply) => {
+      const user = await db
+        .select()
+        .from(usersTable)
+        .where(eq(usersTable.id, request.userId!))
+        .then(takeUniqueOrThrow('User not found'))
+
+      return reply.status(200).send({ user })
     },
   )
 
@@ -56,6 +61,11 @@ const userRoutes: FastifyPluginAsyncZod = async (app) => {
       })
 
       const { id } = getUserParamsSchema.parse(request.params)
+
+      if (id !== request.userId) {
+        throw new ForbiddenError('Cannot access this user')
+      }
+
       const user = await db
         .select()
         .from(usersTable)
@@ -71,6 +81,12 @@ const userRoutes: FastifyPluginAsyncZod = async (app) => {
   app.post(
     '/',
     {
+      config: {
+        rateLimit: {
+          max: 10,
+          timeWindow: '15 minutes',
+        },
+      },
       schema: {
         tags: ['users'],
         body: z.object({
@@ -141,6 +157,10 @@ const userRoutes: FastifyPluginAsyncZod = async (app) => {
       })
 
       const { id } = getUserRequestParamsSchema.parse(request.params)
+
+      if (id !== request.userId) {
+        throw new ForbiddenError('Cannot update this user')
+      }
 
       const updateUserBodySchema = z.object({
         name: z.string().optional(),

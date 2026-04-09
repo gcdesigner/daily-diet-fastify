@@ -29,20 +29,17 @@ describe('User Routes', () => {
     )
   })
 
-  it('should be able to get all users', async () => {
+  it('should be able to get the authenticated user profile', async () => {
     const { client } = await createAuthenticatedClient()
 
-    const response = await client.get('/users')
+    const response = await client.get('/users/me')
 
-    expect(response.body.users).toHaveLength(1)
-    expect(response.body.users).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          id: expect.any(String),
-          name: 'John Doe',
-          email: 'john.doe@example.com',
-        }),
-      ]),
+    expect(response.body.user).toEqual(
+      expect.objectContaining({
+        id: expect.any(String),
+        name: 'John Doe',
+        email: 'john.doe@example.com',
+      }),
     )
   })
 
@@ -96,14 +93,26 @@ describe('User Routes', () => {
     expect(response.body).toEqual({ error: 'Internal server error' })
   })
 
-  it('should return error when user is not found', async () => {
+  it('should return forbidden when updating another user id', async () => {
+    const { client } = await createAuthenticatedClient()
+
+    const response = await client.put(
+      '/users/00000000-0000-0000-0000-000000000000',
+      { name: 'Hacker' },
+    )
+
+    expect(response.status).toBe(403)
+    expect(response.body).toEqual({ error: 'Cannot update this user' })
+  })
+
+  it('should return forbidden when accessing another user id', async () => {
     const { client } = await createAuthenticatedClient()
 
     const response = await client.get(
       '/users/00000000-0000-0000-0000-000000000000',
     )
 
-    expect(response.status).toBe(404)
-    expect(response.body).toEqual({ error: 'User not found' })
+    expect(response.status).toBe(403)
+    expect(response.body).toEqual({ error: 'Cannot access this user' })
   })
 })

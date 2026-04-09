@@ -16,8 +16,10 @@ const timestamps = {
 
 export const sessionsTable = sqliteTable('sessions_table', {
   id,
-  userId: text('user_id', { length: 36 }).references(() => usersTable.id),
-  token: text('token').notNull().unique(),
+  userId: text('user_id', { length: 36 })
+    .notNull()
+    .references(() => usersTable.id),
+  token: text('token', { length: 64 }).notNull().unique(),
   createdAt: timestamps.createdAt,
   expiresAt: text('expires_at').notNull(),
 })
@@ -30,7 +32,9 @@ export const usersTable = sqliteTable('users_table', {
 
 export const mealsTable = sqliteTable('meals_table', {
   id,
-  userId: text('user_id', { length: 36 }).references(() => usersTable.id),
+  userId: text('user_id', { length: 36 })
+    .notNull()
+    .references(() => usersTable.id),
   name: text().notNull(),
   description: text(),
   date: text().notNull(),
