@@ -1,6 +1,14 @@
 import cookie from '@fastify/cookie'
 import cors from '@fastify/cors'
 import rateLimit from '@fastify/rate-limit'
+import swagger from '@fastify/swagger'
+
+import {
+  jsonSchemaTransform,
+  serializerCompiler,
+  validatorCompiler,
+} from 'fastify-type-provider-zod'
+
 import Fastify from 'fastify'
 import { ZodError } from 'zod'
 
@@ -10,8 +18,13 @@ import authRoutes from '@/routes/auth.router'
 import mealRoutes from '@/routes/meal.router'
 import userMetricsRoutes from '@/routes/user-metrics.router'
 import userRoutes from '@/routes/user.router'
+import fastifySwaggerUi from '@fastify/swagger-ui'
 
 export const app = Fastify()
+
+// Adicionar o validator e o serializer compiler
+app.setValidatorCompiler(validatorCompiler)
+app.setSerializerCompiler(serializerCompiler)
 
 app.register(cookie, {
   secret: env.COOKIE_SECRET,
@@ -47,6 +60,25 @@ app.setErrorHandler((error, _request, reply) => {
   }
 
   return reply.status(500).send({ error: 'Internal server error' })
+})
+
+await app.register(swagger, {
+  openapi: {
+    openapi: '3.0.0',
+    info: {
+      title: 'Daily Diet API',
+      description: 'API for the Daily Diet application',
+      version: '1.0.0',
+    },
+    servers: [
+      { url: 'http://localhost:3333', description: 'Development server' },
+    ],
+  },
+  transform: jsonSchemaTransform,
+})
+
+app.register(fastifySwaggerUi, {
+  routePrefix: '/docs',
 })
 
 app.register(authRoutes, { prefix: '/auth' })

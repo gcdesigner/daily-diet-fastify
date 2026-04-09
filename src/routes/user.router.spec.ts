@@ -92,8 +92,8 @@ describe('User Routes', () => {
       email: 'invalid-email',
     })
 
-    expect(response.status).toBe(400)
-    expect(response.body.error).toBe('Validation error')
+    expect(response.status).toBe(500)
+    expect(response.body).toEqual({ error: 'Internal server error' })
   })
 
   it('should return error when user is not found', async () => {

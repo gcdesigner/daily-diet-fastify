@@ -1,33 +1,67 @@
 import { db } from '@/database'
 import { mealsTable } from '@/drizzle-schema'
-import { ForbiddenError } from '@/errors/app-error'
+import { ForbiddenError, NotFoundError } from '@/errors/app-error'
 import { checkTokenExists } from '@/middlewares/check-session'
 import { takeUniqueOrThrow } from '@/utils/drizzle-utils'
 import { eq } from 'drizzle-orm'
-import type { FastifyInstance } from 'fastify'
+import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 
 const mealBodySchema = z.object({
   name: z.string(),
-  description: z.string(),
-  date: z.string().date(),
-  time: z.string().time(),
+  description: z.string().nullable(),
+  date: z.iso.date(),
+  time: z.iso.time(),
   isDiet: z.coerce.number(),
 })
 
-const mealRoutes = async (app: FastifyInstance) => {
-  app.get('/', { preHandler: [checkTokenExists] }, async (request, reply) => {
-    const meals = await db
-      .select()
-      .from(mealsTable)
-      .where(eq(mealsTable.userId, request.userId!))
+const mealResponseSchema = z.object({
+  ...mealBodySchema.shape,
+  id: z.string(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+})
 
-    return reply.status(200).send({ meals })
-  })
+const mealRoutes: FastifyPluginAsyncZod = async (app) => {
+  app.get(
+    '/',
+    {
+      preHandler: [checkTokenExists],
+      schema: {
+        tags: ['meals'],
+        response: {
+          200: z.object({
+            meals: z.array(mealResponseSchema),
+          }),
+        },
+      },
+    },
+    async (request, reply) => {
+      const meals = await db
+        .select()
+        .from(mealsTable)
+        .where(eq(mealsTable.userId, request.userId!))
+
+      return reply.status(200).send({ meals })
+    },
+  )
 
   app.get(
     '/:id',
-    { preHandler: [checkTokenExists] },
+    {
+      preHandler: [checkTokenExists],
+      schema: {
+        tags: ['meals'],
+        params: z.object({
+          id: z.string(),
+        }),
+        response: {
+          200: z.object({
+            meal: mealResponseSchema,
+          }),
+        },
+      },
+    },
     async (request, reply) => {
       const { id } = z.object({ id: z.string() }).parse(request.params)
 
@@ -45,29 +79,70 @@ const mealRoutes = async (app: FastifyInstance) => {
     },
   )
 
-  app.post('/', { preHandler: [checkTokenExists] }, async (request, reply) => {
-    const { name, description, date, time, isDiet } = mealBodySchema.parse(
-      request.body,
-    )
+  app.post(
+    '/',
+    {
+      preHandler: [checkTokenExists],
+      schema: {
+        tags: ['meals'],
+        body: mealBodySchema,
+        response: {
+          201: z.object({
+            meal: mealResponseSchema,
+          }),
+          400: z.object({
+            message: z.string(),
+          }),
+        },
+      },
+    },
+    async (request, reply) => {
+      const { name, description, date, time, isDiet } = mealBodySchema.parse(
+        request.body,
+      )
 
-    const [meal] = await db
-      .insert(mealsTable)
-      .values({
-        userId: request.userId,
-        name,
-        description,
-        date,
-        time,
-        isDiet,
-      })
-      .returning()
+      const [meal] = await db
+        .insert(mealsTable)
+        .values({
+          userId: request.userId,
+          name,
+          description: description ?? null,
+          date,
+          time,
+          isDiet,
+        })
+        .returning()
 
-    return reply.status(201).send({ meal })
-  })
+      if (!meal) {
+        throw new NotFoundError('Meal not found')
+      }
+
+      return reply.status(201).send({ meal })
+    },
+  )
 
   app.put(
     '/:id',
-    { preHandler: [checkTokenExists] },
+    {
+      preHandler: [checkTokenExists],
+      schema: {
+        tags: ['meals'],
+        params: z.object({
+          id: z.string(),
+        }),
+        body: mealBodySchema,
+        response: {
+          200: z.object({
+            meal: z.object({
+              id: z.string(),
+            }),
+          }),
+          400: z.object({
+            message: z.string(),
+          }),
+        },
+      },
+    },
     async (request, reply) => {
       const { id } = z.object({ id: z.string() }).parse(request.params)
 
@@ -91,13 +166,34 @@ const mealRoutes = async (app: FastifyInstance) => {
         .where(eq(mealsTable.id, id))
         .returning()
 
+      if (!meal) {
+        throw new NotFoundError('Meal not found')
+      }
+
       return reply.status(200).send({ meal })
     },
   )
 
   app.delete(
     '/:id',
-    { preHandler: [checkTokenExists] },
+    {
+      preHandler: [checkTokenExists],
+
+      schema: {
+        tags: ['meals'],
+        params: z.object({
+          id: z.string(),
+        }),
+        response: {
+          204: z.object({
+            message: z.string(),
+          }),
+          400: z.object({
+            message: z.string(),
+          }),
+        },
+      },
+    },
     async (request, reply) => {
       const { id } = z.object({ id: z.string() }).parse(request.params)
 
@@ -113,7 +209,7 @@ const mealRoutes = async (app: FastifyInstance) => {
 
       await db.delete(mealsTable).where(eq(mealsTable.id, id))
 
-      return reply.status(204).send()
+      return reply.status(204)
     },
   )
 }

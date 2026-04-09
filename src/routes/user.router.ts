@@ -1,16 +1,34 @@
 import { db } from '@/database'
-import { usersTable, type User } from '@/drizzle-schema'
+import { usersTable } from '@/drizzle-schema'
+import { NotFoundError } from '@/errors/app-error'
 import { checkTokenExists } from '@/middlewares/check-session'
 import { takeUniqueOrThrow } from '@/utils/drizzle-utils'
 import { eq } from 'drizzle-orm'
-import type { FastifyInstance } from 'fastify'
+import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 
-const userRoutes = async (app: FastifyInstance) => {
+const userResponseSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  email: z.string(),
+})
+
+const userRoutes: FastifyPluginAsyncZod = async (app) => {
   app.get(
     '/',
-    { preHandler: [checkTokenExists] },
-    async (_, reply): Promise<{ users: User[] }> => {
+    {
+      preHandler: [checkTokenExists],
+      schema: {
+        tags: ['users'],
+        response: {
+          200: z.object({
+            users: z.array(userResponseSchema),
+          }),
+        },
+      },
+    },
+
+    async (_request, reply) => {
       const users = await db.select().from(usersTable)
       return reply.status(200).send({ users })
     },
@@ -18,8 +36,21 @@ const userRoutes = async (app: FastifyInstance) => {
 
   app.get(
     '/:id',
-    { preHandler: [checkTokenExists] },
-    async (request, reply): Promise<{ user: User }> => {
+    {
+      preHandler: [checkTokenExists],
+      schema: {
+        tags: ['users'],
+        params: z.object({
+          id: z.string(),
+        }),
+        response: {
+          200: z.object({
+            user: userResponseSchema,
+          }),
+        },
+      },
+    },
+    async (request, reply) => {
       const getUserParamsSchema = z.object({
         id: z.string(),
       })
@@ -37,35 +68,74 @@ const userRoutes = async (app: FastifyInstance) => {
     },
   )
 
-  app.post('/', async (request, reply): Promise<{ user: User }> => {
-    const createUserBodySchema = z.object({
-      name: z.string(),
-      email: z.email(),
-    })
+  app.post(
+    '/',
+    {
+      schema: {
+        tags: ['users'],
+        body: z.object({
+          name: z.string(),
+          email: z.email(),
+        }),
+        response: {
+          201: z.object({
+            user: userResponseSchema,
+          }),
+          400: z.object({
+            message: z.string(),
+          }),
+        },
+      },
+    },
+    async (request, reply) => {
+      const { name, email } = request.body
 
-    const { name, email } = createUserBodySchema.parse(request.body)
+      const userAlreadyExists = await db
+        .select()
+        .from(usersTable)
+        .where(eq(usersTable.email, email))
 
-    const userAlreadyExists = await db
-      .select()
-      .from(usersTable)
-      .where(eq(usersTable.email, email))
+      if (userAlreadyExists.length > 0) {
+        return reply.status(400).send({ message: 'User already exists' })
+      }
 
-    if (userAlreadyExists.length > 0) {
-      return reply.status(400).send({ message: 'User already exists' })
-    }
+      const [user] = await db
+        .insert(usersTable)
+        .values({ name, email })
+        .returning()
 
-    const [user] = await db
-      .insert(usersTable)
-      .values({ name, email })
-      .returning()
+      if (!user) {
+        throw new NotFoundError('User not found')
+      }
 
-    return reply.status(201).send({ user })
-  })
+      return reply.status(201).send({ user })
+    },
+  )
 
   app.put(
     '/:id',
-    { preHandler: [checkTokenExists] },
-    async (request, reply): Promise<{ user: User }> => {
+    {
+      preHandler: [checkTokenExists],
+      schema: {
+        tags: ['users'],
+        params: z.object({
+          id: z.string(),
+        }),
+        body: z.object({
+          name: z.string().optional(),
+          email: z.email().optional(),
+        }),
+        response: {
+          200: z.object({
+            user: userResponseSchema,
+          }),
+          400: z.object({
+            message: z.string(),
+          }),
+        },
+      },
+    },
+    async (request, reply) => {
       const getUserRequestParamsSchema = z.object({
         id: z.string(),
       })
@@ -84,6 +154,10 @@ const userRoutes = async (app: FastifyInstance) => {
         .set({ name, email })
         .where(eq(usersTable.id, id))
         .returning()
+
+      if (!user) {
+        throw new NotFoundError('User not found')
+      }
 
       return reply.status(200).send({ user })
     },
