@@ -22,6 +22,13 @@ export class UnauthorizedError extends AppError {
   }
 }
 
+export class ConflictError extends AppError {
+  constructor(message = 'Resource already exists') {
+    super(message, 409)
+    this.name = 'ConflictError'
+  }
+}
+
 export class ForbiddenError extends AppError {
   constructor(message = 'Forbidden') {
     super(message, 403)

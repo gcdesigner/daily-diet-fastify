@@ -4,14 +4,18 @@ import type { User } from '@/drizzle-schema'
 import request from 'supertest'
 
 export async function createAuthenticatedUser(
-  data = { name: 'John Doe', email: 'john.doe@example.com' },
+  data = {
+    name: 'John Doe',
+    email: 'john.doe@example.com',
+    password: 'secret123',
+  },
 ) {
   const createResponse = await request(app.server).post('/users').send(data)
   const user = createResponse.body.user as User
 
   const signInResponse = await request(app.server)
     .post('/auth/sign-in')
-    .send({ email: data.email })
+    .send({ email: data.email, password: data.password })
 
   const cookies = (signInResponse.headers['set-cookie'] ?? []) as string[]
 
@@ -19,7 +23,11 @@ export async function createAuthenticatedUser(
 }
 
 export async function createAuthenticatedClient(
-  data = { name: 'John Doe', email: 'john.doe@example.com' },
+  data = {
+    name: 'John Doe',
+    email: 'john.doe@example.com',
+    password: 'secret123',
+  },
 ) {
   const { user, cookies } = await createAuthenticatedUser(data)
 

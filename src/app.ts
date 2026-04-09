@@ -10,7 +10,6 @@ import {
 } from 'fastify-type-provider-zod'
 
 import Fastify from 'fastify'
-import { ZodError } from 'zod'
 
 import { env } from '@/env'
 import { AppError } from '@/errors/app-error'
@@ -42,22 +41,28 @@ app.register(cors, {
   allowedHeaders: ['Content-Type', 'Authorization'],
 })
 
-app.register(rateLimit, {
-  max: 100,
-  timeWindow: '1 minute',
-})
+if (env.NODE_ENV !== 'test') {
+  app.register(rateLimit, {
+    max: 100,
+    timeWindow: '1 minute',
+  })
+}
 
-app.setErrorHandler((error, _request, reply) => {
-  if (error instanceof ZodError) {
-    return reply.status(400).send({
-      error: 'Validation error',
-      details: error.issues,
-    })
-  }
-
+app.setErrorHandler((error: unknown, _request, reply) => {
   if (error instanceof AppError) {
     return reply.status(error.statusCode).send({
       error: error.message,
+    })
+  }
+
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code: string }).code === 'FST_ERR_VALIDATION'
+  ) {
+    return reply.status(400).send({
+      error: 'Validation error',
     })
   }
 

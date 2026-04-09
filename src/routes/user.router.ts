@@ -1,11 +1,20 @@
 import { db } from '@/database'
 import { usersTable } from '@/drizzle-schema'
-import { ForbiddenError, NotFoundError } from '@/errors/app-error'
+import {
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+} from '@/errors/app-error'
 import { checkTokenExists } from '@/middlewares/check-session'
+import { hashPassword } from '@/utils/password'
 import { takeUniqueOrThrow } from '@/utils/drizzle-utils'
 import { eq } from 'drizzle-orm'
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { z } from 'zod'
+
+const passwordSchema = z
+  .string()
+  .min(6, 'Password must be at least 6 characters')
 
 const userResponseSchema = z.object({
   id: z.string(),
@@ -30,7 +39,11 @@ const userRoutes: FastifyPluginAsyncZod = async (app) => {
 
     async (request, reply) => {
       const user = await db
-        .select()
+        .select({
+          id: usersTable.id,
+          name: usersTable.name,
+          email: usersTable.email,
+        })
         .from(usersTable)
         .where(eq(usersTable.id, request.userId!))
         .then(takeUniqueOrThrow('User not found'))
@@ -67,7 +80,11 @@ const userRoutes: FastifyPluginAsyncZod = async (app) => {
       }
 
       const user = await db
-        .select()
+        .select({
+          id: usersTable.id,
+          name: usersTable.name,
+          email: usersTable.email,
+        })
         .from(usersTable)
         .where(eq(usersTable.id, id))
         .then(takeUniqueOrThrow('User not found'))
@@ -92,19 +109,17 @@ const userRoutes: FastifyPluginAsyncZod = async (app) => {
         body: z.object({
           name: z.string(),
           email: z.email(),
+          password: passwordSchema,
         }),
         response: {
           201: z.object({
             user: userResponseSchema,
           }),
-          400: z.object({
-            message: z.string(),
-          }),
         },
       },
     },
     async (request, reply) => {
-      const { name, email } = request.body
+      const { name, email, password } = request.body
 
       const userAlreadyExists = await db
         .select()
@@ -112,13 +127,19 @@ const userRoutes: FastifyPluginAsyncZod = async (app) => {
         .where(eq(usersTable.email, email))
 
       if (userAlreadyExists.length > 0) {
-        return reply.status(400).send({ message: 'User already exists' })
+        throw new ConflictError('User already exists')
       }
+
+      const hashedPassword = await hashPassword(password)
 
       const [user] = await db
         .insert(usersTable)
-        .values({ name, email })
-        .returning()
+        .values({ name, email, password: hashedPassword })
+        .returning({
+          id: usersTable.id,
+          name: usersTable.name,
+          email: usersTable.email,
+        })
 
       if (!user) {
         throw new NotFoundError('User not found')
@@ -140,13 +161,11 @@ const userRoutes: FastifyPluginAsyncZod = async (app) => {
         body: z.object({
           name: z.string().optional(),
           email: z.email().optional(),
+          password: passwordSchema.optional(),
         }),
         response: {
           200: z.object({
             user: userResponseSchema,
-          }),
-          400: z.object({
-            message: z.string(),
           }),
         },
       },
@@ -165,21 +184,66 @@ const userRoutes: FastifyPluginAsyncZod = async (app) => {
       const updateUserBodySchema = z.object({
         name: z.string().optional(),
         email: z.email().optional(),
+        password: passwordSchema.optional(),
       })
 
-      const { name, email } = updateUserBodySchema.parse(request.body)
+      const { name, email, password } = updateUserBodySchema.parse(request.body)
+
+      const hashedPassword = password ? await hashPassword(password) : undefined
 
       const [user] = await db
         .update(usersTable)
-        .set({ name, email })
+        .set({
+          name,
+          email,
+          ...(hashedPassword && { password: hashedPassword }),
+        })
         .where(eq(usersTable.id, id))
-        .returning()
+        .returning({
+          id: usersTable.id,
+          name: usersTable.name,
+          email: usersTable.email,
+        })
 
       if (!user) {
         throw new NotFoundError('User not found')
       }
 
       return reply.status(200).send({ user })
+    },
+  )
+  app.delete(
+    '/:id',
+    {
+      preHandler: [checkTokenExists],
+      schema: {
+        tags: ['users'],
+        params: z.object({
+          id: z.string(),
+        }),
+        response: {
+          204: z.object({}),
+        },
+      },
+    },
+    async (request, reply) => {
+      const { id } = z.object({ id: z.string() }).parse(request.params)
+
+      if (id !== request.userId) {
+        throw new ForbiddenError('Cannot delete this user')
+      }
+
+      const deleted = await db
+        .delete(usersTable)
+        .where(eq(usersTable.id, id))
+        .returning({ id: usersTable.id })
+
+      if (!deleted.length) {
+        throw new NotFoundError('User not found')
+      }
+
+      reply.clearCookie('token', { path: '/' })
+      return reply.status(204).send({})
     },
   )
 }

@@ -15,11 +15,12 @@ describe('Auth Routes', () => {
     await request(app.server).post('/users').send({
       name: 'John Doe',
       email: 'john.doe@example.com',
+      password: 'secret123',
     })
 
     const response = await request(app.server)
       .post('/auth/sign-in')
-      .send({ email: 'john.doe@example.com' })
+      .send({ email: 'john.doe@example.com', password: 'secret123' })
       .expect(200)
 
     expect(response.body).toEqual(
@@ -31,12 +32,28 @@ describe('Auth Routes', () => {
         }),
       }),
     )
+    expect(response.body.user.password).toBeUndefined()
   })
 
   it('should not sign in with non-existent email', async () => {
     const response = await request(app.server)
       .post('/auth/sign-in')
-      .send({ email: 'naoexiste@example.com' })
+      .send({ email: 'naoexiste@example.com', password: 'secret123' })
+
+    expect(response.status).toBe(401)
+    expect(response.body).toEqual({ error: 'Invalid credentials' })
+  })
+
+  it('should not sign in with wrong password', async () => {
+    await request(app.server).post('/users').send({
+      name: 'Jane Doe',
+      email: 'jane.doe@example.com',
+      password: 'correct-password',
+    })
+
+    const response = await request(app.server)
+      .post('/auth/sign-in')
+      .send({ email: 'jane.doe@example.com', password: 'wrong-password' })
 
     expect(response.status).toBe(401)
     expect(response.body).toEqual({ error: 'Invalid credentials' })

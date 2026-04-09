@@ -17,6 +17,7 @@ describe('User Routes', () => {
       .send({
         name: 'John Doe',
         email: 'john.doe@example.com',
+        password: 'secret123',
       })
       .expect(201)
 
@@ -27,6 +28,7 @@ describe('User Routes', () => {
         email: 'john.doe@example.com',
       }),
     )
+    expect(response.body.user.password).toBeUndefined()
   })
 
   it('should be able to get the authenticated user profile', async () => {
@@ -72,25 +74,37 @@ describe('User Routes', () => {
     await request(app.server).post('/users').send({
       name: 'John Doe',
       email: 'john@example.com',
+      password: 'secret123',
     })
 
     const response = await request(app.server).post('/users').send({
       name: 'Jane Doe',
       email: 'john@example.com',
+      password: 'secret456',
     })
 
-    expect(response.status).toBe(400)
-    expect(response.body.message).toBe('User already exists')
+    expect(response.status).toBe(409)
+    expect(response.body.error).toBe('User already exists')
   })
 
   it('should not create a user with invalid email', async () => {
     const response = await request(app.server).post('/users').send({
       name: 'John Doe',
       email: 'invalid-email',
+      password: 'secret123',
     })
 
-    expect(response.status).toBe(500)
-    expect(response.body).toEqual({ error: 'Internal server error' })
+    expect(response.status).toBe(400)
+  })
+
+  it('should not create a user with short password', async () => {
+    const response = await request(app.server).post('/users').send({
+      name: 'John Doe',
+      email: 'john.short@example.com',
+      password: '123',
+    })
+
+    expect(response.status).toBe(400)
   })
 
   it('should return forbidden when updating another user id', async () => {
@@ -114,5 +128,24 @@ describe('User Routes', () => {
 
     expect(response.status).toBe(403)
     expect(response.body).toEqual({ error: 'Cannot access this user' })
+  })
+
+  it('should be able to delete own account and cascade relations', async () => {
+    const { user, client } = await createAuthenticatedClient()
+
+    const response = await client.delete(`/users/${user.id}`)
+
+    expect(response.status).toBe(204)
+  })
+
+  it('should not be able to delete another user account', async () => {
+    const { client } = await createAuthenticatedClient()
+
+    const response = await client.delete(
+      '/users/00000000-0000-0000-0000-000000000000',
+    )
+
+    expect(response.status).toBe(403)
+    expect(response.body).toEqual({ error: 'Cannot delete this user' })
   })
 })

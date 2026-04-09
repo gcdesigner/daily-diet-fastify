@@ -1,7 +1,9 @@
-import { env } from '@/env'
 import { db } from '@/database'
 import { sessionsTable, usersTable } from '@/drizzle-schema'
+import { env } from '@/env'
+import { UnauthorizedError } from '@/errors/app-error'
 import { checkTokenExists } from '@/middlewares/check-session'
+import { verifyPassword } from '@/utils/password'
 import { hashSessionToken } from '@/utils/session-token'
 import { randomUUID } from 'crypto'
 import { eq } from 'drizzle-orm'
@@ -30,6 +32,7 @@ const authRoutes: FastifyPluginAsyncZod = async (app) => {
         tags: ['auth'],
         body: z.object({
           email: z.email(),
+          password: z.string().min(1),
         }),
         response: {
           200: z.object({
@@ -39,26 +42,28 @@ const authRoutes: FastifyPluginAsyncZod = async (app) => {
               email: z.string(),
             }),
           }),
-          401: z.object({
-            error: z.string(),
-          }),
         },
       },
     },
     async (request, reply) => {
       const signInBodySchema = z.object({
         email: z.email(),
+        password: z.string().min(1),
       })
 
-      const { email } = signInBodySchema.parse(request.body)
+      const { email, password } = signInBodySchema.parse(request.body)
 
       const [user] = await db
         .select()
         .from(usersTable)
         .where(eq(usersTable.email, email))
 
-      if (!user) {
-        return reply.status(401).send({ error: 'Invalid credentials' })
+      const passwordValid = user
+        ? await verifyPassword(password, user.password)
+        : false
+
+      if (!user || !passwordValid) {
+        throw new UnauthorizedError('Invalid credentials')
       }
 
       const token = randomUUID()

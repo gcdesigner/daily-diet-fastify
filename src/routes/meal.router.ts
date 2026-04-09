@@ -41,6 +41,7 @@ const mealRoutes: FastifyPluginAsyncZod = async (app) => {
         .select()
         .from(mealsTable)
         .where(eq(mealsTable.userId, request.userId!))
+        .orderBy(mealsTable.date, mealsTable.time)
 
       return reply.status(200).send({ meals })
     },
@@ -104,7 +105,7 @@ const mealRoutes: FastifyPluginAsyncZod = async (app) => {
       const [meal] = await db
         .insert(mealsTable)
         .values({
-          userId: request.userId,
+          userId: request.userId!,
           name,
           description: description ?? null,
           date,
